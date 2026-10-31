@@ -1,0 +1,544 @@
+{
+  "info": {
+    "name": "FaceSafe Backend (HOF)",
+    "description": "Coleção completa dos módulos auth, regions, content, documents, billing, sos e admin. Login preenche {{accessToken}} automaticamente — rode as pastas em ordem (Auth -> Regions -> Content -> Documents -> Billing -> SOS -> Admin) na primeira vez pra encadear os IDs sozinho.\n\nATENÇÃO: usuários nascem com role 'profissional' e status 'pending_verification'. Pra testar rotas de admin_conteudo/revisor_compliance/superadmin, promova o usuário direto no Mongo:\n  db.users.updateOne({email: \"admin@teste.com\"}, {$set: {role: \"superadmin\", status: \"active\"}})\n\nA rota de Procedure não existe (fora do escopo pedido) — defina {{procedureId}} manualmente com um ObjectId real criado via seed/Mongo antes de rodar a pasta Content.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "accessToken", "value": "" },
+    { "key": "refreshToken", "value": "" },
+    { "key": "userId", "value": "" },
+    { "key": "regionId", "value": "" },
+    { "key": "procedureId", "value": "" },
+    { "key": "contentId", "value": "" },
+    { "key": "documentId", "value": "" },
+    { "key": "subscriptionId", "value": "" },
+    { "key": "sosContactId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Admin Conteudo\",\n  \"email\": \"admin@teste.com\",\n  \"password\": \"senha123456\",\n  \"professionalCredentials\": {\n    \"council\": \"CRO\",\n    \"registrationNumber\": \"12345\",\n    \"state\": \"RJ\"\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json();",
+                  "if (data.accessToken) pm.collectionVariables.set('accessToken', data.accessToken);",
+                  "if (data.refreshToken) pm.collectionVariables.set('refreshToken', data.refreshToken);",
+                  "if (data.user && data.user.id) pm.collectionVariables.set('userId', data.user.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@teste.com\",\n  \"password\": \"senha123456\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Refresh",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json();",
+                  "if (data.accessToken) pm.collectionVariables.set('accessToken', data.accessToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/auth/refresh", "host": ["{{baseUrl}}"], "path": ["auth", "refresh"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/auth/logout", "host": ["{{baseUrl}}"], "path": ["auth", "logout"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Regions",
+      "item": [
+        {
+          "name": "List Published",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/regions", "host": ["{{baseUrl}}"], "path": ["regions"] }
+          }
+        },
+        {
+          "name": "Get By Slug",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/regions/frontal", "host": ["{{baseUrl}}"], "path": ["regions", "frontal"] }
+          }
+        },
+        {
+          "name": "Create (admin_conteudo/superadmin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json();",
+                  "if (data._id) pm.collectionVariables.set('regionId', data._id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/regions", "host": ["{{baseUrl}}"], "path": ["regions"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"slug\": \"frontal\",\n  \"name\": \"Região Frontal\",\n  \"status\": \"published\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Update",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/regions/{{regionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["regions", "{{regionId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Região Frontal (atualizada)\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Content",
+      "item": [
+        {
+          "name": "List Published",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/content?region=frontal&procedure=toxina",
+              "host": ["{{baseUrl}}"],
+              "path": ["content"],
+              "query": [
+                { "key": "region", "value": "frontal" },
+                { "key": "procedure", "value": "toxina" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get By Id",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/content/{{contentId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["content", "{{contentId}}"]
+            }
+          }
+        },
+        {
+          "name": "Create (admin_conteudo/superadmin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json();",
+                  "if (data._id) pm.collectionVariables.set('contentId', data._id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/content", "host": ["{{baseUrl}}"], "path": ["content"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"region\": \"{{regionId}}\",\n  \"procedure\": \"{{procedureId}}\",\n  \"blocks\": {\n    \"planejamento\": {\n      \"objetivo\": \"Suavizar rugas\",\n      \"produtoCategoria\": \"toxina\",\n      \"dispositivo\": \"agulha 32G\",\n      \"marcacao\": \"pontos padrão\"\n    },\n    \"sinaisAlerta\": [\n      { \"descricao\": \"Ptose palpebral\", \"acaoRecomendada\": \"Encaminhar\" }\n    ],\n    \"posProcedimento\": {\n      \"cuidadosImediatos\": [\"Não deitar 4h\"],\n      \"orientacaoDomiciliar\": [\"Evitar sol\"]\n    }\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "Update",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/content/{{contentId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["content", "{{contentId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"Ajuste no bloco de planejamento\",\n  \"blocks\": {\n    \"planejamento\": {\n      \"objetivo\": \"Suavizar rugas dinâmicas\",\n      \"produtoCategoria\": \"toxina\",\n      \"dispositivo\": \"agulha 32G\",\n      \"marcacao\": \"pontos padrão revisado\"\n    }\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "Publish",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/content/{{contentId}}/publish",
+              "host": ["{{baseUrl}}"],
+              "path": ["content", "{{contentId}}", "publish"]
+            }
+          }
+        },
+        {
+          "name": "Get History",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/content/{{contentId}}/history",
+              "host": ["{{baseUrl}}"],
+              "path": ["content", "{{contentId}}", "history"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Documents",
+      "item": [
+        {
+          "name": "List Published",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/documents?type=termo_consentimento",
+              "host": ["{{baseUrl}}"],
+              "path": ["documents"],
+              "query": [{ "key": "type", "value": "termo_consentimento" }]
+            }
+          }
+        },
+        {
+          "name": "Get By Id",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/documents/{{documentId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["documents", "{{documentId}}"]
+            }
+          }
+        },
+        {
+          "name": "Create (admin_conteudo/superadmin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json();",
+                  "if (data._id) pm.collectionVariables.set('documentId', data._id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/documents", "host": ["{{baseUrl}}"], "path": ["documents"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"termo_consentimento\",\n  \"title\": \"Termo de Consentimento - Toxina\",\n  \"bodyText\": \"Texto do termo...\",\n  \"priceCents\": 1000\n}"
+            }
+          }
+        },
+        {
+          "name": "Update (só antes de aprovado)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/documents/{{documentId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["documents", "{{documentId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Termo de Consentimento - Toxina (revisado)\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Approve Legal Review (revisor_compliance/superadmin)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/documents/{{documentId}}/legal-review",
+              "host": ["{{baseUrl}}"],
+              "path": ["documents", "{{documentId}}", "legal-review"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reviewerName\": \"Dra. Compliance\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Publish (admin_conteudo/superadmin)",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/documents/{{documentId}}/publish",
+              "host": ["{{baseUrl}}"],
+              "path": ["documents", "{{documentId}}", "publish"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Consent Records",
+      "item": [
+        {
+          "name": "Record Consent",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/consent-records", "host": ["{{baseUrl}}"], "path": ["consent-records"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"documentId\": \"{{documentId}}\",\n  \"name\": \"Admin Conteudo\",\n  \"cpf\": \"00000000000\",\n  \"professionalRegistration\": \"CRO 12345\"\n}"
+            }
+          }
+        },
+        {
+          "name": "My Consents",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/consent-records/me", "host": ["{{baseUrl}}"], "path": ["consent-records", "me"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Billing",
+      "item": [
+        {
+          "name": "My Subscription",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/subscriptions/me", "host": ["{{baseUrl}}"], "path": ["subscriptions", "me"] }
+          }
+        },
+        {
+          "name": "Start Checkout",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json();",
+                  "if (data.subscription && data.subscription._id) pm.collectionVariables.set('subscriptionId', data.subscription._id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/subscriptions/checkout",
+              "host": ["{{baseUrl}}"],
+              "path": ["subscriptions", "checkout"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"plan\": \"full\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Webhook Mercado Pago (público)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/webhooks/mercado-pago",
+              "host": ["{{baseUrl}}"],
+              "path": ["webhooks", "mercado-pago"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subscriptionId\": \"{{subscriptionId}}\",\n  \"event\": \"payment_approved\",\n  \"amountCents\": 9900,\n  \"gatewayTransactionId\": \"fake-tx-1\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Purchase Standalone Document",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/payments/avulso", "host": ["{{baseUrl}}"], "path": ["payments", "avulso"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"documentId\": \"{{documentId}}\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "SOS",
+      "item": [
+        {
+          "name": "List Active Contacts",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/sos/contacts", "host": ["{{baseUrl}}"], "path": ["sos", "contacts"] }
+          }
+        },
+        {
+          "name": "Create Contact (superadmin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json();",
+                  "if (data._id) pm.collectionVariables.set('sosContactId', data._id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/sos/contacts", "host": ["{{baseUrl}}"], "path": ["sos", "contacts"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Dr. Fábio Barros\",\n  \"location\": \"Ipanema\",\n  \"whatsappNumber\": \"5521999999999\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Contact (superadmin)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/sos/contacts/{{sosContactId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["sos", "contacts", "{{sosContactId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"unavailableWindows\": [\n    { \"dayOfWeek\": 0, \"startTime\": \"22:00\", \"endTime\": \"07:00\" }\n  ]\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "List Audit Logs (revisor_compliance/superadmin)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/admin/audit-logs", "host": ["{{baseUrl}}"], "path": ["admin", "audit-logs"] }
+          }
+        },
+        {
+          "name": "List Incidents",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/admin/incidents", "host": ["{{baseUrl}}"], "path": ["admin", "incidents"] }
+          }
+        },
+        {
+          "name": "Create Incident (qualquer profissional)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/admin/incidents", "host": ["{{baseUrl}}"], "path": ["admin", "incidents"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Teste de incidente\",\n  \"severity\": \"baixa\",\n  \"region\": \"{{regionId}}\"\n}"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
